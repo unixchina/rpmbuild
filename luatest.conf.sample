@@ -1,0 +1,17 @@
+        # If you want to use lua module,you should install luajit2: yum install luajit,rename this template file to luatest.conf;and
+        # then uncomment 'load_module "/usr/lib64/nginx/modules/ngx_http_lua_module.so";' in this file: /etc/nginx/modules/allmod.conf
+        set_by_lua $rdm_number ' return math.random(1000000000, os.time()) ';
+        set_by_lua_block $res { return 32 + math.cos(32) }
+        location = /lua {
+            default_type 'text/plain';
+            content_by_lua 'ngx.say("hello, content by lua")';
+        }
+        location /luaset {
+            echo "set by lua: $msec - $rdm_number - $res";
+            default_type 'text/html';
+        }
+        location /luafile {
+            set_by_lua_file $num /etc/nginx/lua/set.lua;
+            default_type 'text/html';
+            echo $num;
+        }
