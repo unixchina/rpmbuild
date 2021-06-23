@@ -1,6 +1,6 @@
 Name: nginx          
 Version: 1.21.0      
-Release: 1%{?dist}
+Release: 3%{?dist}
 Summary: Nginx-1.21.0.tar.gz to nginx-1.21.0.rpm include 3rd module
 License: 2-clause BSD-like
 URL: http://nginx.org/			   
@@ -22,6 +22,9 @@ Source17: nginx-module-vts-0.1.18.tar.gz
 Source18: nginx_upstream_check_module.zip
 Source19: ngx-waf-5.3.2.tar.gz
 Source20: ngx_http_substitutions_filter_module-0.6.4.tar.gz
+Source21: ngx_devel_kit-0.3.1.tar.gz
+Source22: nginx-module-headers-more.zip
+Source23: nginx-module-set-misc.zip
 
 
 BuildRoot: %_topdir/BUILDROOT			
@@ -32,7 +35,7 @@ BuildRequires: gcc,make
 %description              
 Base nginx-1.21.0.tar.gz,add some 3rd modules: nginx-module-lua-0.10.14,nginx-module-vts-0.1.18,
 nginx-module-echo-0.62,nginx_upstream_check_module,ngx_http_substitutions_filter_module-0.6.4,
-nginx-module-sysguard,ngx_waf-5.3.2
+nginx-module-sysguard,ngx_waf-5.3.2,header-more,set-misc
 
 # Define macros
 %define nginx_user      nginx
@@ -47,7 +50,7 @@ nginx-module-sysguard,ngx_waf-5.3.2
 
 
 %prep 		 
-# 提前把各种需要用到的文件拷贝到%{_sourcedir}目录里,yum安装包都可以提前做掉,尽量不要让spec来做
+# 提前把各种需要用到的文件拷贝到%{_sourcedir}目录里,编译所依赖的包都可以yum提前做掉,尽量不要让spec来做
 # Default path: %_builddir -- ~/rpmbuild/BUILD
 #%setup -q
 rm -fr %{name}-%{version}
@@ -62,6 +65,9 @@ mv -f nginx_upstream_check_module-master %{name}-%{version}/add-modules/nginx_up
 mv -f nginx-module-sysguard-master %{name}-%{version}/add-modules/nginx-module-sysguard
 mv -f ngx_waf-5.3.2 ngx_http_substitutions_filter_module-0.6.4 %{name}-%{version}/add-modules/
 mv -f nginx-module-vts-0.1.18 nginx-http-concat-1.2.2 nginx-http-footer-filter-1.2.2 %{name}-%{version}/add-modules/
+mv -f ngx_devel_kit-0.3.1 %{name}-%{version}/add-modules/
+mv -f nginx-module-set-misc %{name}-%{version}/add-modules/
+mv -f nginx-module-headers-more %{name}-%{version}/add-modules/
 
 cd %{name}-%{version}
 patch -p1 < add-modules/nginx_upstream_check_module/check_1.16.1+.patch
@@ -86,10 +92,11 @@ cd %{name}-%{version}
 --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_random_index_module --with-http_secure_link_module \
 --with-http_degradation_module --with-mail_ssl_module --with-pcre --with-pcre-jit --with-debug --with-http_realip_module --with-http_xslt_module=dynamic \
 --with-http_image_filter_module=dynamic --with-http_geoip_module=dynamic --with-http_perl_module=dynamic --with-mail=dynamic  --with-stream=dynamic --with-stream_ssl_module \
---add-module=add-modules/nginx_upstream_check_module --add-module=add-modules/ngx_http_substitutions_filter_module-0.6.4 \
---add-module=add-modules/nginx-http-footer-filter-1.2.2/ --add-dynamic-module=add-modules/nginx-module-lua-0.10.14 --add-module=add-modules/nginx-module-vts-0.1.18 \
+--add-module=add-modules/nginx_upstream_check_module --add-module=add-modules/ngx_http_substitutions_filter_module-0.6.4 --add-module=add-modules/nginx-http-footer-filter-1.2.2 \
+--add-dynamic-module=add-modules/ngx_devel_kit-0.3.1 --add-dynamic-module=add-modules/nginx-module-lua-0.10.14 --add-module=add-modules/nginx-module-vts-0.1.18 \
 --add-module=add-modules/nginx-http-concat-1.2.2 --add-module=add-modules/nginx-module-echo-0.62 --add-dynamic-module=add-modules/nginx-module-sysguard/ \
---add-dynamic-module=add-modules/ngx_waf-5.3.2 --with-cc-opt='-std=gnu99'
+--add-dynamic-module=add-modules/nginx-module-set-misc --add-dynamic-module=add-modules/nginx-module-headers-more \
+--add-dynamic-module=add-modules/ngx_waf-5.3.2 --with-cc-opt="-std=gnu99"
 
 make %{?_smp_mflags}            
 
@@ -106,7 +113,7 @@ make install DESTDIR=%{buildroot}
 find %{buildroot} -type f -name .packlist -exec rm -f {} \;
 find %{buildroot} -type f -name perllocal.pod -exec rm -f {} \;
 find %{buildroot} -type f -empty -exec rm -f {} \;
-# 编译完成后会生成一些.default配置文件,都是冗余的,这里都把这些冗余的删除.
+# 编译完成后会生成一些.default配置文件,都是冗余的,这里都把这些冗余的删除.你也可以保留作为备份
 rm -fr %{buildroot}/etc/nginx/fastcgi.conf.default
 rm -fr %{buildroot}/etc/nginx/fastcgi_params.default
 rm -fr %{buildroot}/etc/nginx/mime.types.default
@@ -118,7 +125,13 @@ install -m 0755 -d %{buildroot}/%{nginx_confdir}/{conf.d,default.d,modules,ssl}
 install -p -D %{_sourcedir}/nginx.service %{buildroot}/usr/lib/systemd/system/nginx.service
 install -p -D %{_sourcedir}/nginx.conf %{buildroot}/%{nginx_confdir}/nginx.conf					
 install -p -D %{_sourcedir}/nginx.conf %{buildroot}/%{nginx_confdir}/nginx.conf.default
+install -p -D %{_sourcedir}/default.conf %{buildroot}/%{nginx_confdir}/conf.d/default.conf
 install -p -D %{_sourcedir}/allmod.conf %{buildroot}/%{nginx_confdir}/modules/allmod.conf
+install -p -D %{_sourcedir}/vtsvar.conf %{buildroot}/%{nginx_confdir}/default.d/
+install -p -D %{_sourcedir}/favicon.conf %{buildroot}/%{nginx_confdir}/default.d/
+install -p -D %{_sourcedir}/luatest.conf.sample %{buildroot}/%{nginx_confdir}/default.d/
+install -p -D %{_sourcedir}/add-request-id.conf %{buildroot}/%{nginx_confdir}/default.d/
+install -p -D %{_sourcedir}/deny-notmatch-domain.conf %{buildroot}/%{nginx_confdir}/default.d/
 
 # %doc部分需要用到
 install -p -D LICENSE CHANGES README %{_builddir}/
@@ -175,6 +188,7 @@ fi
 /usr/lib64/nginx
 %config(noreplace) %{nginx_confdir}/nginx.conf
 %config(noreplace) %{nginx_confdir}/nginx.conf.default
+%config(noreplace) %{nginx_confdir}/conf.d/default.conf
 %config(noreplace) %{nginx_confdir}/modules/allmod.conf
 %config(noreplace) %{nginx_confdir}/fastcgi_params
 %config(noreplace) %{nginx_confdir}/fastcgi.conf
@@ -184,6 +198,8 @@ fi
 %config(noreplace) %{nginx_confdir}/koi-utf
 %config(noreplace) %{nginx_confdir}/koi-win
 %config(noreplace) %{nginx_confdir}/win-utf
+%config(noreplace) %{nginx_confdir}/default.d/*
+
 /usr/lib/systemd/system/nginx.service
 /usr/local/lib64/perl5
 /usr/local/share/man/man3/nginx.3pm
@@ -192,7 +208,12 @@ fi
 ###  7.chagelog section  日志改变段， 这一段主要描述软件的开发记录
 
 %changelog
-*  Mon Jun  8 2021 liuxing <daihaijun@gmail.com> - 1.21.0-1
+* Tue Jun 22 2021 liuxing <daihaijun@gmail.com> - 1.21.0-3
+- add module nginx-module-set-misc,nginx-module-headers-more
+- 默认配置模板有比较大的调整
+* Thu Jun 17 2021 liuxing <daihaijun@gmail.com> - 1.21.0-2
+- add module ngx_devel_kit-0.3.1
+* Mon Jun  8 2021 liuxing <daihaijun@gmail.com> - 1.21.0-1
 - Initial version,dependent package is luajit2,exact module:libluajit-5.1.so.2
 - add these module: nginx-module-echo-0.62,nginx_upstream_check_module,ngx_http_substitutions_filter_module-0.6.4
 - nginx-module-vts-0.1.18, nginx-module-echo-0.62, nginx-module-sysguard, ngx_waf-5.3.2
